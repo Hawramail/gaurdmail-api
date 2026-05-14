@@ -15,11 +15,9 @@ class ZohoMailController extends Controller
     // ─────────────────────────────────────────────
     public function getAccounts(Request $request)
     {
-        $token = $request->input('token');
+        $request->validate(['token' => 'required|string']);
 
-        if (!$token) {
-            return response()->json(['error' => 'Missing access token'], 400);
-        }
+        $token = $request->input('token');
 
         $response = Http::withHeaders([
             'Authorization' => 'Zoho-oauthtoken ' . $token,
@@ -55,7 +53,7 @@ class ZohoMailController extends Controller
     //   ccAddress    string   — comma-separated CC (optional)
     //   subject      string
     //   htmlBody     string   — rendered HTML template
-    //   files[]      file[]   — uploaded attachments (any type)
+    //   files[]      file[]   — uploaded attachments (PDF or images only, max 25 MB each)
     // ─────────────────────────────────────────────
     public function sendEmailwAttachments(Request $request)
     {
@@ -69,7 +67,11 @@ class ZohoMailController extends Controller
             'htmlBody'       => 'required|string',
             'attachmentMode' => 'nullable|string|in:merge,separate',
             'files'          => 'nullable|array',
-            'files.*'        => 'file|max:20480',
+            'files.*'        => [
+                'file',
+                'max:25600',
+                'mimetypes:application/pdf,image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp',
+            ],
         ]);
 
         $token          = $request->input('token');
@@ -131,9 +133,10 @@ class ZohoMailController extends Controller
         }
 
         return response()->json([
-            'success'  => true,
-            'message'  => 'Email sent successfully',
-            'response' => $sendResponse->json(),
+            'success'       => true,
+            'message'       => 'Email sent successfully',
+            'zohoMessageId' => $sendResponse->json('data.messageId'),
+            'response'      => $sendResponse->json(),
         ]);
     }
 

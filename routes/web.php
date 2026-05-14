@@ -2,6 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', function () {
+    return response()->json([
+        'message' => 'MailGuard API is running',
+        'status' => 'ok'
+    ]);
+});
+
 Route::get('/test', function () {
     return response()->json([
         'message' => 'Laravel connected to Quasar',
