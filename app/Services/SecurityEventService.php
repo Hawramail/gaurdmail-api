@@ -81,37 +81,49 @@ class SecurityEventService
     }
 
     public function getRecentEvents(string $eventType, int $minutes = 60, ?string $userId = null): array
-    {
-        $since = now()->subMinutes($minutes)->toIso8601String();
+{
+    $since = now('UTC')->subMinutes($minutes);
 
-        $filters = [
-            ['fieldFilter' => ['field' => ['fieldPath' => 'eventType'], 'op' => 'EQUAL',                    'value' => ['stringValue'   => $eventType]]],
-            ['fieldFilter' => ['field' => ['fieldPath' => 'timestamp'], 'op' => 'GREATER_THAN_OR_EQUAL',   'value' => ['timestampValue' => $since]]],
-        ];
+    $filters = [
+        ['fieldFilter' => ['field' => ['fieldPath' => 'eventType'], 'op' => 'EQUAL',
+                           'value' => ['stringValue' => $eventType]]],
+    ];
 
-        if ($userId) {
-            $filters[] = ['fieldFilter' => ['field' => ['fieldPath' => 'userId'], 'op' => 'EQUAL', 'value' => ['stringValue' => $userId]]];
-        }
-
-        $response = Http::post("{$this->baseUrl}:runQuery?key={$this->apiKey}", [
-            'structuredQuery' => [
-                'from'  => [['collectionId' => 'security_events']],
-                'where' => ['compositeFilter' => ['op' => 'AND', 'filters' => $filters]],
-            ]
-        ]);
-
-        if (!$response->successful()) return [];
-
-        $results = [];
-        foreach ($response->json() as $item) {
-            if (!isset($item['document'])) continue;
-            $results[] = array_merge(
-                ['_id' => basename($item['document']['name'])],
-                $this->decodeFields($item['document']['fields'] ?? [])
-            );
-        }
-        return $results;
+    if ($userId) {
+        $filters[] = ['fieldFilter' => ['field' => ['fieldPath' => 'userId'], 'op' => 'EQUAL',
+                                        'value' => ['stringValue' => $userId]]];
     }
+
+    $query = count($filters) === 1
+        ? ['fieldFilter' => $filters[0]['fieldFilter']]
+        : ['compositeFilter' => ['op' => 'AND', 'filters' => $filters]];
+
+    $response = Http::post("{$this->baseUrl}:runQuery?key={$this->apiKey}", [
+        'structuredQuery' => [
+            'from'  => [['collectionId' => 'security_events']],
+            'where' => $query,
+        ]
+    ]);
+
+    if (!$response->successful()) return [];
+
+    $results = [];
+    foreach ($response->json() as $item) {
+        if (!isset($item['document'])) continue;
+        $decoded = array_merge(
+            ['_id' => basename($item['document']['name'])],
+            $this->decodeFields($item['document']['fields'] ?? [])
+        );
+        // Filter by time in PHP
+        $ts = $decoded['timestamp'] ?? null;
+        if ($ts) {
+            $eventTime = new \DateTime($ts);
+            if ($eventTime < $since) continue;
+        }
+        $results[] = $decoded;
+    }
+    return $results;
+}
 
     public function openAlertExistsForRule(string $rule): bool
     {

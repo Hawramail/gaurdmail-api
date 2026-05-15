@@ -61,6 +61,7 @@ class DetectAnomalies extends Command
     // ─────────────────────────────────────────────────────────────────────────
     private function ruleEmailBurst(): int
     {
+        
         $events = $this->siem->getRecentEvents('EMAIL_SENT', 60);
         $byUser = [];
 
