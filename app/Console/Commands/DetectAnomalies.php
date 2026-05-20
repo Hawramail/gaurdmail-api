@@ -57,12 +57,12 @@ class DetectAnomalies extends Command
 
     // ─────────────────────────────────────────────────────────────────────────
     // RULE 1 — Email Burst
-    // Threshold: >10 emails from the same user within 60 minutes → CRITICAL
+    // Threshold: >10 emails from the same user within 10 minutes → CRITICAL
     // ─────────────────────────────────────────────────────────────────────────
     private function ruleEmailBurst(): int
     {
         
-        $events = $this->siem->getRecentEvents('EMAIL_SENT', 60);
+        $events = $this->siem->getRecentEvents('EMAIL_SENT', 10);
         $byUser = [];
 
         foreach ($events as $e) {
